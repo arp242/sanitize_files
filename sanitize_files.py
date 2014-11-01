@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+#
 # Copyright © 2014 Martin Tournoij <martin@arp242.net>
 # See below for full copyright
 #
@@ -21,6 +21,27 @@ def is_binary(data):
 	return data.find(b'\000') >= 0
 
 
+# TODO: we probably also want to process ignore files, like in:
+# https://github.com/ggreer/the_silver_searcher/blob/master/src/ignore.c
+def should_ignore(path):
+
+	keep = [
+		# VCS systems
+		'.git/', '.hg/' '.svn/' 'CVS/',
+
+		# These files have significant whitespace/tabs, and cannot be edited
+		# safely
+		# TODO: there are probably more of these files..
+		'Makefile', 'BSDmakefile', 'GNUmakefile', 'Gemfile.lock'
+	]
+
+	for k in keep:
+		if '/%s' % k in path:
+			return True
+
+	return False
+
+
 def run(files, indent_type='spaces', indent_width=4, max_newlines=2):
 	if indent_type == 'tabs':
 		indent_find = b' ' * indent_width
@@ -30,6 +51,10 @@ def run(files, indent_type='spaces', indent_width=4, max_newlines=2):
 		indent_replace = b' ' * indent_width
 
 	for f in files:
+		if should_ignore(f):
+			verbose('Ignoring %s' % f)
+			continue
+
 		try:
 			size = os.stat(f).st_size
 		# Unresolvable symlink, just ignore those
@@ -86,7 +111,7 @@ def run(files, indent_type='spaces', indent_width=4, max_newlines=2):
 			else:
 				consec_lines = 0
 
-			if consec_lines >= max_newlines:
+			if consec_lines > max_newlines:
 				data[i] = None
 				newlines_trimmed += 1
 			else:
@@ -124,6 +149,7 @@ if __name__ == '__main__':
 
 	paths = args['paths']
 	del args['paths']
+	if len(paths) == 0: paths = [os.getcwd()]
 
 	_verbose = args['verbose']
 	del args['verbose']
