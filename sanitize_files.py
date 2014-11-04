@@ -3,11 +3,11 @@
 # Copyright © 2014 Martin Tournoij <martin@arp242.net>
 # See below for full copyright
 #
-# Version 20141001
+# Version 20141104
 # http://code.arp242.net/sanitize_files
 #
 
-import argparse, os, re, sys
+import argparse, fnmatch, os, re, sys
 
 
 _verbose = False
@@ -143,6 +143,8 @@ if __name__ == '__main__':
 		help='indentation width; defaults to 4')
 	parser.add_argument('-m', '--max-newlines', type=int, default=2,
 		help='maximum consecutive newlines; defaults to 2')
+	parser.add_argument('-e', '--exclude', nargs='*',
+		help='paths to exclude; simple glob')
 	parser.add_argument('paths', nargs='*',
 		help='directories to (recursively) scan for files; defaults to cwd')
 	args = vars(parser.parse_args())
@@ -150,6 +152,9 @@ if __name__ == '__main__':
 	paths = args['paths']
 	del args['paths']
 	if len(paths) == 0: paths = [os.getcwd()]
+
+	excludes = args['exclude'] or []
+	del args['exclude']
 
 	_verbose = args['verbose']
 	del args['verbose']
@@ -165,7 +170,16 @@ if __name__ == '__main__':
 	allfiles = []
 	for path in paths:
 		for root, dirs, files in os.walk(path):
-			allfiles += [ '%s/%s' % (root, f) for f in files ]
+			for f in files:
+				p = '%s/%s' % (root, f)
+				do_add = True
+				for exclude in excludes:
+					if fnmatch.fnmatch(p.replace(path, '').lstrip('/'), exclude):
+						do_add = False
+						break
+
+				if do_add:
+					allfiles.append(p)
 
 	run(allfiles, **args)
 
