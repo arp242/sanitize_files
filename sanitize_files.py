@@ -1,14 +1,14 @@
 #!/usr/bin/env python
+#encoding: utf-8
 #
-# Copyright © 2014 Martin Tournoij <martin@arp242.net>
+# Copyright © 2014-2016 Martin Tournoij <martin@arp242.net>
 # See below for full copyright
 #
-# Version 20141104
 # http://code.arp242.net/sanitize_files
 #
 
+from __future__ import print_function
 import argparse, fnmatch, os, re, sys
-
 
 _verbose = False
 
@@ -23,11 +23,10 @@ def is_binary(data):
 
 # TODO: we probably also want to process ignore files, like in:
 # https://github.com/ggreer/the_silver_searcher/blob/master/src/ignore.c
-def should_ignore(path):
-
+def should_always_ignore(path):
 	keep = [
 		# VCS systems
-		'.git/', '.hg/' '.svn/' 'CVS/',
+		'/.git', '/.hg', '/.svn', '/CVS',
 
 		# These files have significant whitespace/tabs, and cannot be edited
 		# safely
@@ -36,9 +35,8 @@ def should_ignore(path):
 	]
 
 	for k in keep:
-		if '/%s' % k in path:
+		if k in path:
 			return True
-
 	return False
 
 
@@ -51,10 +49,6 @@ def run(files, indent_type='spaces', indent_width=4, max_newlines=2):
 		indent_replace = b' ' * indent_width
 
 	for f in files:
-		if should_ignore(f):
-			verbose('Ignoring %s' % f)
-			continue
-
 		try:
 			size = os.stat(f).st_size
 		# Unresolvable symlink, just ignore those
@@ -68,23 +62,23 @@ def run(files, indent_type='spaces', indent_width=4, max_newlines=2):
 			continue
 
 		try:
-			data = open(f, 'rb').read()
+			original = open(f, 'rb').read()
 		except (OSError, PermissionError) as exc:
 			print("Error: Unable to read `%s': %s" % (f, exc))
 			continue
 
-		if is_binary(data):
+		if is_binary(original):
 			verbose("Skipping `%s' because it looks binary" % f)
 			continue
 
-		data = data.split(b'\n')
+		new = original.split(b'\n')
 
 		was_dos = False
 		fixed_indent = False
 		lines_trimmed = 0
 		newlines_trimmed = 0
 		consec_lines = 0
-		for i, line in enumerate(data):
+		for i, line in enumerate(new):
 			# Fix \r\n
 			if line[-1:] == b'\r':
 				was_dos = True
@@ -111,25 +105,42 @@ def run(files, indent_type='spaces', indent_width=4, max_newlines=2):
 			else:
 				consec_lines = 0
 
+			#print(max_newlines, consec_lines, line)
 			if consec_lines > max_newlines:
-				data[i] = None
+				new[i] = None
 				newlines_trimmed += 1
 			else:
-				data[i] = line
+				new[i] = line
 
-		data = list(filter(lambda x: x is not None, data))
+		new = list(filter(lambda x: x is not None, new))
 		if was_dos: verbose('Fixed \\r\\n line endings')
 		if fixed_indent: verbose('Fixed indentation')
-		if lines_trimmed > 0: verbose('Trimmed trailing whitespae of %s lines' % lines_trimmed)
+		if lines_trimmed > 0: verbose('Trimmed trailing whitespace of %s lines' % lines_trimmed)
 		if newlines_trimmed > 0: verbose('Removed %s newlines' % newlines_trimmed)
-		if data[-1:] != [b'']:
+		if new[-1:] != [b'']:
 			verbose('Adding newline at end of file')
-			data += [b'']
+			new += [b'']
 
-		try:
-			open(f, 'wb').write(b'\n'.join(data))
-		except (OSError, PermissionError) as exc:
-			print("Error: Unable to write to `%s': %s" % (f, exc))
+		new = b'\n'.join(new)
+		if new != original:
+			verbose('Writing %s' % f)
+			try:
+				open(f, 'wb').write(new)
+			except:
+				print("Error: Unable to write to `%s': %s" % (f, sys.exc_info()[1]))
+
+
+def do_add_file(path):
+	if should_always_ignore(path):
+		verbose('Ignoring %s' % path)
+		return False
+
+	for exclude in excludes:
+		if fnmatch.fnmatch(path, exclude):
+			verbose('Excluding %s' % path)
+			return False
+
+	return True
 
 
 if __name__ == '__main__':
@@ -144,14 +155,13 @@ if __name__ == '__main__':
 	parser.add_argument('-m', '--max-newlines', type=int, default=2,
 		help='maximum consecutive newlines; defaults to 2')
 	parser.add_argument('-e', '--exclude', nargs='*',
-		help='paths to exclude; simple glob')
-	parser.add_argument('paths', nargs='*',
-		help='directories to (recursively) scan for files; defaults to cwd')
+		help='paths to exclude; simple glob pattern')
+	parser.add_argument('paths', nargs='+',
+		help='directories to (recursively) scan for files')
 	args = vars(parser.parse_args())
 
 	paths = args['paths']
 	del args['paths']
-	if len(paths) == 0: paths = [os.getcwd()]
 
 	excludes = args['exclude'] or []
 	del args['exclude']
@@ -169,35 +179,33 @@ if __name__ == '__main__':
 
 	allfiles = []
 	for path in paths:
-		for root, dirs, files in os.walk(path):
-			for f in files:
-				p = '%s/%s' % (root, f)
-				do_add = True
-				for exclude in excludes:
-					if fnmatch.fnmatch(p.replace(path, '').lstrip('/'), exclude):
-						do_add = False
-						break
-
-				if do_add:
-					allfiles.append(p)
+		if os.path.isfile(path):
+			if do_add_file(path):
+				allfiles.append(path)
+		else:
+			for root, dirs, files in os.walk(path):
+				for f in files:
+					p = '%s/%s' % (root, f)
+					if do_add_file(p.replace(path, '', 1)):
+						allfiles.append(p)
 
 	run(allfiles, **args)
 
 
-# The MIT License (MIT) 
-# 
-# Copyright © 2014 Martin Tournoij
-# 
+# The MIT License (MIT)
+#
+# Copyright © 2014-2016 Martin Tournoij
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the “Software”), to
 # deal in the Software without restriction, including without limitation the
 # rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
 # sell copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
-# 
+#
 # The software is provided "as is", without warranty of any kind, express or
 # implied, including but not limited to the warranties of merchantability,
 # fitness for a particular purpose and noninfringement. In no event shall the

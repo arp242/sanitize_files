@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# encoding: utf-8
 
 import tempfile, subprocess
 
@@ -14,7 +15,9 @@ def contents_is(fp, expect, desc, opt={}):
 	try:
 		assert content == expect, "%s: %s" % (desc, content)
 	except AssertionError as e:
-		print('Error: %s' % e)
+		print('Error: %s' % desc)
+		print('  Expected: %s' % repr(expect))
+		print('  Actual:   %s' % repr(content))
 	else:
 		print('Okay: %s' % desc)
 
@@ -37,8 +40,8 @@ with tempfile.NamedTemporaryFile() as fp:
 		{'indent_type': 'tabs'})
 
 with tempfile.NamedTemporaryFile() as fp:
-	fp.write(b'Hello\n\n\nWorld\nHello\nWorld\n \n    \n\t\nxxx\n')
-	contents_is(fp, b'Hello\n\nWorld\nHello\nWorld\n\nxxx\n', 'Removes consecutive newlines')
+	fp.write(b'Hello\n\n\n\nWorld\nHello\nWorld\n \n    \n\t\nxxx\n')
+	contents_is(fp, b'Hello\n\n\nWorld\nHello\nWorld\n\n\nxxx\n', 'Removes consecutive newlines')
 
 with tempfile.NamedTemporaryFile() as fp:
 	fp.write(b'Hello     \nWorld\t\t\n')
