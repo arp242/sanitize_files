@@ -1,0 +1,13 @@
+dist: trusty
+language: python
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "3.6"
+cache:
+  directories:
+    - $HOME/.cache/pip
+script:
+  - ./tests.py

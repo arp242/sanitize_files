@@ -1,4 +1,5 @@
 [![This project is considered finished](https://img.shields.io/badge/Status-finished-green.svg)](https://arp242.net/status/finished)
+[![Build Status](https://travis-ci.org/Carpetsmoker/sanitize_files.svg?branch=master)](https://travis-ci.org/Carpetsmoker/sanitize_files)
 
 We’ve all been here, you just inherited a project and it’s a mess.
 
