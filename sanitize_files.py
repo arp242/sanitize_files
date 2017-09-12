@@ -40,7 +40,7 @@ def should_always_ignore(path):
 	return False
 
 
-def run(files, indent_type='spaces', indent_width=4, max_newlines=2):
+def run(files, indent_type='tabs', indent_width=4, max_newlines=2):
 	if indent_type == 'tabs':
 		indent_find = b' ' * indent_width
 		indent_replace = b'\t'

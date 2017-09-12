@@ -1,6 +1,4 @@
-Project status: stable
-
------------------------------------------
+[![This project is considered finished](https://img.shields.io/badge/Status-finished-green.svg)](https://arp242.net/status/finished)
 
 We’ve all been here, you just inherited a project and it’s a mess.
 
@@ -23,6 +21,7 @@ ChangeLog
 
 Version 1.1, 20160424
 ---------------------
+
 - Removing consecutive newlines didn't work as intended.
 - Better ignoring of VCS directories.
 - Add encoding:utf-8 for Python 2.
@@ -32,5 +31,6 @@ Version 1.1, 20160424
 
 Version 1.0, 20141104
 ---------------------
+
 - Initial release
 
